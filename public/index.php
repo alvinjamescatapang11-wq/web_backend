@@ -1,4 +1,21 @@
 <?php
+if (PHP_SAPI === 'cli-server') {
+    $requestPath = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    $assetsDirectory = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'react' . DIRECTORY_SEPARATOR . 'assets');
+    $requestedFile = realpath(
+        __DIR__ . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $requestPath), DIRECTORY_SEPARATOR)
+    );
+
+    if (
+        $assetsDirectory !== false &&
+        $requestedFile !== false &&
+        is_file($requestedFile) &&
+        strpos($requestedFile, $assetsDirectory . DIRECTORY_SEPARATOR) === 0
+    ) {
+        return false;
+    }
+}
+
 define('PREVENT_DIRECT_ACCESS', TRUE);
 /**
  * ------------------------------------------------------------------

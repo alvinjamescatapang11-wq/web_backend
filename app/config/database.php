@@ -58,16 +58,29 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 */
 
 $database['main'] = array(
-    'driver'	=> '',
+    'driver'	=> getenv('DB_DRIVER') ?: 'mysql',
     'hostname'	=> getenv('DB_HOST') ?: '',
     'port'		=> getenv('DB_PORT') ?: '',
     'username'	=> getenv('DB_USERNAME') ?: '',
     'password'	=> getenv('DB_PASSWORD') ?: '',
     'database'	=> getenv('DB_NAME') ?: '',
-    'charset'	=> '',
+    'charset'	=> getenv('DB_CHARSET') ?: 'utf8mb4',
     'dbprefix'	=> '',
     // Optional for SQLite
     'path'      => ''
 );
+
+if (
+    $database['main']['driver'] === 'mysql' &&
+    (
+        $database['main']['hostname'] === '' ||
+        $database['main']['username'] === '' ||
+        $database['main']['database'] === ''
+    )
+) {
+    throw new RuntimeException(
+        'Configure DB_HOST, DB_USERNAME, and DB_NAME in the backend .env before using database features.'
+    );
+}
 
 ?>
