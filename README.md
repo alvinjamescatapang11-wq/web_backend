@@ -200,10 +200,11 @@ npm install
 npm run build
 ```
 
-Vite writes the production bundle to `LavaLust/public/react/` so the backend
-can serve it; React source remains outside the backend. After enabling Apache
-rewrites and serving the `LavaLust/` project, open its root URL to view the
-dashboard. No React files are placed in `app/views/`.
+For a regular production build, Vite writes the bundle to
+`LavaLust/public/react/` so the backend can serve it. On Vercel, set the project
+Root Directory to `frontend`; Vite detects Vercel and writes to `frontend/dist`
+with root-relative assets. React source remains outside the backend. No React
+files are placed in `app/views/`.
 
 For local development, start the PHP server from the backend directory:
 
@@ -220,8 +221,8 @@ cd ..\frontend
 npm run dev
 ```
 
-Production builds are served by LavaLust from `public/react/`. No React files
-are placed in `app/views/`.
+Regular production builds are served by LavaLust from `public/react/`; Vercel
+builds use `frontend/dist`. No React files are placed in `app/views/`.
 
 ## AGRI-TRACK Phase 1: Database and Backend Foundation
 
@@ -255,6 +256,8 @@ random, expire after 12 hours, and are stored only as SHA-256 hashes. The
    cross-origin clients; the example allows local `localhost` and `127.0.0.1`
    Vite origins. Same-origin requests from the LavaLust-served production
    frontend are handled without adding its host to the CORS allowlist.
+   For Aiven MySQL, set `DB_SSL_CA=app/config/aiven-ca.pem` to enable TLS and
+   verify the server certificate.
 4. Run the migrations from the backend directory:
 
    ```powershell
@@ -410,8 +413,10 @@ Successful responses use `{"data": ...}`; errors use
 origins.
 
 The Vite development server proxies `/api` requests to
-`LAVALUST_BACKEND_URL`. For a production build, run `npm run build` in
-`frontend/`; assets are written to `public/react/` and served by LavaLust.
+`LAVALUST_BACKEND_URL`. For a regular production build, run `npm run build` in
+`frontend/`; assets are written to `public/react/` and served by LavaLust. On
+Vercel, use `frontend` as the Root Directory and configure
+`VITE_API_BASE_URL` to the deployed backend URL if the API is hosted separately.
 
 ### Sample-data policy and CAO inputs still required
 

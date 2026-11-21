@@ -268,6 +268,30 @@ class Database {
             PDO::ATTR_EMULATE_PREPARES   => false,
         );
 
+        $sslCa = isset($database_config['ssl_ca']) ? trim($database_config['ssl_ca']) : '';
+        if ($driver === 'mysql' && $sslCa !== '') {
+            if (!is_file($sslCa)) {
+                $relativeSslCa = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR
+                    . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $sslCa), DIRECTORY_SEPARATOR);
+                if (is_file($relativeSslCa)) {
+                    $sslCa = $relativeSslCa;
+                }
+            }
+
+            if (!is_file($sslCa) || !is_readable($sslCa)) {
+                throw new RuntimeException('DB_SSL_CA must point to a readable MySQL CA certificate file.');
+            }
+
+            if (!defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                throw new RuntimeException('The PDO MySQL extension must be enabled to use DB_SSL_CA.');
+            }
+
+            $options[constant('PDO::MYSQL_ATTR_SSL_CA')] = $sslCa;
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $options[constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')] = true;
+            }
+        }
+
         try {
             $this->db = new PDO($dsn, $username, $password, $options);
             $this->driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
