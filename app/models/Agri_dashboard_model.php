@@ -15,25 +15,7 @@ class Agri_dashboard_model extends Model
             ? (int) $user['barangay_id']
             : null;
 
-        $metrics = [
-            'farmers' => $this->count_records('farmers', $barangayId, true),
-            'farms' => $this->count_records('farms', $barangayId, true),
-            'ricePlantings' => $this->count_records('rice_plantings', $barangayId, true),
-            'cropPlantings' => $this->count_records('crop_plantings', $barangayId, true),
-            'livestockHeads' => $this->sum_quantity('livestock', $barangayId),
-            'harvestRecords' => $this->count_records('harvests', $barangayId, true),
-            'pendingVerifications' => $this->count_records(
-                'rice_monitoring_submissions',
-                $barangayId,
-                false,
-                'status = ?',
-                ['pending']
-            ),
-        ];
-
-        if ($barangayId === null) {
-            $metrics['barangays'] = $this->count_records('barangays', null, true, 'is_active = 1');
-        }
+        $metrics = $this->dashboard_metrics($barangayId);
 
         return [
             'scope' => [
@@ -48,52 +30,44 @@ class Agri_dashboard_model extends Model
         ];
     }
 
-    private function count_records($table, $barangayId, $excludeDeleted, $extraWhere = '', array $extraParams = [])
+    private function dashboard_metrics($barangayId)
     {
-        $allowedTables = [
-            'farmers',
-            'farms',
-            'rice_plantings',
-            'crop_plantings',
-            'livestock',
-            'harvests',
-            'rice_monitoring_submissions',
-            'barangays',
+        $definitions = [
+            'farmers' => ['farmers', 'COUNT(*)', 'deleted_at IS NULL', true, []],
+            'farms' => ['farms', 'COUNT(*)', 'deleted_at IS NULL', true, []],
+            'ricePlantings' => ['rice_plantings', 'COUNT(*)', 'deleted_at IS NULL', true, []],
+            'cropPlantings' => ['crop_plantings', 'COUNT(*)', 'deleted_at IS NULL', true, []],
+            'livestockHeads' => ['livestock', 'COALESCE(SUM(quantity), 0)', 'deleted_at IS NULL', true, []],
+            'harvestRecords' => ['harvests', 'COUNT(*)', 'deleted_at IS NULL', true, []],
+            'pendingVerifications' => ['rice_monitoring_submissions', 'COUNT(*)', 'status = ?', true, ['pending']],
         ];
-        if (!in_array($table, $allowedTables, true)) {
-            throw new InvalidArgumentException('Unsupported dashboard table.');
+        if ($barangayId === null) {
+            $definitions['barangays'] = ['barangays', 'COUNT(*)', 'is_active = 1', false, []];
         }
 
-        $conditions = [];
+        $expressions = [];
         $params = [];
-        if ($barangayId !== null) {
-            $conditions[] = 'barangay_id = ?';
-            $params[] = $barangayId;
-        }
-        if ($excludeDeleted && $table !== 'rice_monitoring_submissions') {
-            $conditions[] = 'deleted_at IS NULL';
-        }
-        if ($extraWhere !== '') {
-            $conditions[] = $extraWhere;
-            $params = array_merge($params, $extraParams);
+
+        foreach ($definitions as $alias => [$table, $aggregate, $condition, $scopeToBarangay, $conditionParams]) {
+            $conditions = [];
+            if ($barangayId !== null && $scopeToBarangay) {
+                $conditions[] = 'barangay_id = ?';
+                $params[] = $barangayId;
+            }
+            if ($condition !== '') {
+                $conditions[] = $condition;
+            }
+            $params = array_merge($params, $conditionParams);
+            $expressions[] = '(SELECT ' . $aggregate . ' FROM `' . $table . '` WHERE '
+                . implode(' AND ', $conditions) . ') AS `' . $alias . '`';
         }
 
-        $sql = 'SELECT COUNT(*) FROM `' . $table . '`';
-        if ($conditions) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        $row = $this->db->raw('SELECT ' . implode(', ', $expressions), $params)->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            throw new RuntimeException('Dashboard metrics could not be calculated.');
         }
-        return (int) $this->db->raw($sql, $params)->fetchColumn();
-    }
 
-    private function sum_quantity($table, $barangayId)
-    {
-        $sql = 'SELECT COALESCE(SUM(quantity), 0) FROM `' . $table . '` WHERE deleted_at IS NULL';
-        $params = [];
-        if ($barangayId !== null) {
-            $sql .= ' AND barangay_id = ?';
-            $params[] = $barangayId;
-        }
-        return (int) $this->db->raw($sql, $params)->fetchColumn();
+        return array_map('intval', $row);
     }
 
     private function production_trend($barangayId)

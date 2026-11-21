@@ -36,18 +36,7 @@ class Farmer_dashboard_model extends Model
             throw new RuntimeException('The signed-in account is not linked to an active farmer profile.');
         }
 
-        $metrics = [
-            'farms' => $this->count_records('farms', $farmerId),
-            'ricePlantings' => $this->count_records('rice_plantings', $farmerId),
-            'cropPlantings' => $this->count_records('crop_plantings', $farmerId),
-            'livestockHeads' => (int) $this->db->raw(
-                'SELECT COALESCE(SUM(quantity), 0)
-                 FROM livestock
-                 WHERE farmer_id = ? AND deleted_at IS NULL',
-                [$farmerId]
-            )->fetchColumn(),
-            'harvestRecords' => $this->count_records('harvests', $farmerId),
-        ];
+        $metrics = $this->dashboard_metrics($farmerId);
 
         return [
             'profile' => $profile,
@@ -59,17 +48,30 @@ class Farmer_dashboard_model extends Model
         ];
     }
 
-    private function count_records($table, $farmerId)
+    private function dashboard_metrics($farmerId)
     {
-        $allowedTables = ['farms', 'rice_plantings', 'crop_plantings', 'harvests'];
-        if (!in_array($table, $allowedTables, true)) {
-            throw new InvalidArgumentException('Unsupported farmer dashboard table.');
+        $definitions = [
+            'farms' => ['farms', 'COUNT(*)'],
+            'ricePlantings' => ['rice_plantings', 'COUNT(*)'],
+            'cropPlantings' => ['crop_plantings', 'COUNT(*)'],
+            'livestockHeads' => ['livestock', 'COALESCE(SUM(quantity), 0)'],
+            'harvestRecords' => ['harvests', 'COUNT(*)'],
+        ];
+        $expressions = [];
+        $params = [];
+
+        foreach ($definitions as $alias => [$table, $aggregate]) {
+            $expressions[] = '(SELECT ' . $aggregate . ' FROM `' . $table . '`'
+                . ' WHERE farmer_id = ? AND deleted_at IS NULL) AS `' . $alias . '`';
+            $params[] = $farmerId;
         }
 
-        return (int) $this->db->raw(
-            'SELECT COUNT(*) FROM `' . $table . '` WHERE farmer_id = ? AND deleted_at IS NULL',
-            [$farmerId]
-        )->fetchColumn();
+        $row = $this->db->raw('SELECT ' . implode(', ', $expressions), $params)->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            throw new RuntimeException('Farmer dashboard metrics could not be calculated.');
+        }
+
+        return array_map('intval', $row);
     }
 
     private function farms($farmerId)
