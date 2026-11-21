@@ -8,8 +8,20 @@ class Farm_management extends Controller
 {
     public function index()
     {
-        $this->call->model('Farm_management_model');
-        (new Api_response())->success($this->Farm_management_model->list_farms(Auth_context::user()));
+        try {
+            $this->call->model('Farm_management_model');
+            $farms = $this->Farm_management_model->list_farms(Auth_context::user());
+        } catch (Throwable $exception) {
+            error_log(sprintf(
+                '[farm-list] %s in %s:%d',
+                get_class($exception),
+                $exception->getFile(),
+                $exception->getLine()
+            ));
+            (new Api_response())->error('farm_list_failed', 'Farm locations are temporarily unavailable.', 500);
+        }
+
+        (new Api_response())->success($farms);
     }
 
     public function options()
