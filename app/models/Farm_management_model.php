@@ -13,7 +13,7 @@ class Farm_management_model extends Model
 
     public function list_farms(array $user)
     {
-        [$scope, $params] = $this->scope($user, 'farmers');
+        [$scope, $params] = $this->scope($user, 'farms');
         $where = array_merge(['farms.deleted_at IS NULL', 'farmers.deleted_at IS NULL'], $scope);
         return $this->db->raw(
             'SELECT farms.id, farms.barangay_id, farms.farmer_id, farms.farm_name,
