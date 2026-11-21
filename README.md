@@ -416,7 +416,10 @@ The Vite development server proxies `/api` requests to
 `LAVALUST_BACKEND_URL`. For a regular production build, run `npm run build` in
 `frontend/`; assets are written to `public/react/` and served by LavaLust. On
 Vercel, use `frontend` as the Root Directory and configure
-`VITE_API_BASE_URL` to the deployed backend URL if the API is hosted separately.
+`VITE_API_BASE_URL` to the deployed API base if the API is hosted separately.
+For the current Render Docker setup, append `/public` to the backend origin
+(for example, `https://<backend-host>/public`) so API requests reach LavaLust's
+front controller.
 
 ### Sample-data policy and CAO inputs still required
 
