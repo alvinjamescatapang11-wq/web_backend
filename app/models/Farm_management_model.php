@@ -20,13 +20,13 @@ class Farm_management_model extends Model
                     farms.location_description, farms.latitude, farms.longitude,
                     farms.area_hectares, farms.ownership_type, farms.is_sample,
                     barangays.name AS barangay_name,
-                    CONCAT(farmers.first_name, " ", farmers.last_name) AS farmer_name,
-                    (SELECT GROUP_CONCAT(DISTINCT crop_types.name ORDER BY crop_types.name SEPARATOR ", ")
+                    CONCAT(farmers.first_name, \' \', farmers.last_name) AS farmer_name,
+                    (SELECT GROUP_CONCAT(DISTINCT crop_types.name ORDER BY crop_types.name SEPARATOR \', \')
                      FROM crop_plantings
                      INNER JOIN crop_types ON crop_types.id = crop_plantings.crop_type_id
                      WHERE crop_plantings.farm_id = farms.id
                        AND crop_plantings.deleted_at IS NULL) AS crop_names,
-                    (SELECT GROUP_CONCAT(DISTINCT livestock_categories.name ORDER BY livestock_categories.name SEPARATOR ", ")
+                    (SELECT GROUP_CONCAT(DISTINCT livestock_categories.name ORDER BY livestock_categories.name SEPARATOR \', \')
                      FROM livestock
                      INNER JOIN livestock_categories ON livestock_categories.id = livestock.livestock_category_id
                      WHERE livestock.farm_id = farms.id AND livestock.deleted_at IS NULL) AS livestock_names
